@@ -1,8 +1,11 @@
+from utils import ConvertMp3ToWav
 
 
 def main() -> None:
-    print("Hello World!")
-
+    ConvertMp3ToWav(
+        'languages_audio',
+        'languages_audio_mp3',
+        'languages_audio_wav').call_ffmpeg()
 
 
 if __name__ == "__main__":

@@ -9,6 +9,9 @@ chromedriver.exe
 # C extensions
 *.so
 
+# Large data
+languages_audio/
+
 # Distribution / packaging
 .Python
 build/
