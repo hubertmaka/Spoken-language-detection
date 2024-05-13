@@ -1,4 +1,4 @@
-from utils import ConvertMp3ToWav
+from src.utils import ConvertMp3ToWav
 
 
 def main() -> None:

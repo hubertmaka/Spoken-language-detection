@@ -9,6 +9,8 @@ librosa = "*"
 pandas = "*"
 
 [dev-packages]
+jupyter = "*"
+matplotlib = "*"
 
 [requires]
 python_version = "3.12"
