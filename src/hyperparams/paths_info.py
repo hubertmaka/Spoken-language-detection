@@ -1,5 +1,4 @@
 import os
-import src.proces_audio_utils.exceptions as ex
 
 
 class MetaPathsInfo(type):
@@ -13,37 +12,38 @@ class PathsInfo(metaclass=MetaPathsInfo):
     VALIDATED_FILENAME = 'validated.tsv'
     CLIP_DURATIONS_FILENAME = 'clip_durations.tsv'
     LANG_DIR_PATH: str = os.path.join("..", "..", "..", "languages")
-    LANG_DIRS: list[str] = []
-    VALIDATED_INFO_FILES_PATHS: list[str] = []
-    DURATION_INFO_FILES_PATHS: list[str] = []
-
-    @classmethod
-    def get_lang_path(cls) -> list[str]:
-        return os.listdir(cls.LANG_DIR_PATH)
+    LANG_DIRS: dict[str, str] = {}
+    VALIDATED_INFO_FILES_PATHS: dict[str, str] = []
+    DURATION_INFO_FILES_PATHS: dict[str, str] = []
 
     @classmethod
     def get_languages(cls) -> list[str]:
-        return [os.path.join(cls.LANG_DIR_PATH, lang) for lang in cls.get_lang_path()]
+        return os.listdir(cls.LANG_DIR_PATH)
+
+    @classmethod
+    def get_languages_paths(cls) -> list[str]:
+        return [os.path.join(cls.LANG_DIR_PATH, lang) for lang in cls.get_languages()]
 
     @classmethod
     def _update_lang_dirs(cls):
-        cls.LANG_DIRS = cls.get_languages()
+        cls.LANG_DIRS = {lang: path for lang, path in zip(cls.get_languages(), cls.get_languages_paths())}
 
     @classmethod
     def _update_validated_info_files(cls):
-        cls.VALIDATED_INFO_FILES_PATHS = [os.path.join(lang, cls.VALIDATED_FILENAME) for lang in cls.LANG_DIRS]
+        cls.VALIDATED_INFO_FILES_PATHS = {
+            lang: os.path.join(path, cls.VALIDATED_FILENAME)
+            for lang, path in cls.LANG_DIRS.items()
+        }
 
     @classmethod
     def _update_duration_info_files(cls):
-        cls.DURATION_INFO_FILES_PATHS = [os.path.join(lang, cls.CLIP_DURATIONS_FILENAME) for lang in cls.LANG_DIRS]
+        cls.DURATION_INFO_FILES_PATHS = {
+            lang: os.path.join(path, cls.CLIP_DURATIONS_FILENAME)
+            for lang, path in cls.LANG_DIRS.items()
+        }
 
     @classmethod
     def initialize(cls) -> None:
         cls._update_lang_dirs()
         cls._update_validated_info_files()
         cls._update_duration_info_files()
-
-
-p = PathsInfo()
-print(p.VALIDATED_INFO_FILES_PATHS)
-print(p.DURATION_INFO_FILES_PATHS)

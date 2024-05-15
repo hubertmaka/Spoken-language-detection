@@ -1,4 +1,4 @@
-import src.proces_audio_utils.exceptions as ex
+import src.hyperparams.exceptions as ex
 
 
 class AudioHyperparameters:

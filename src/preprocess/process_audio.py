@@ -1,6 +1,6 @@
 import tensorflow as tf
-from paths_info import PathsInfo as hparams
-import random
+from src.hyperparams.paths_info import PathsInfo as hparams
+
 
 class ProcessAudio:
     def __init__(self, wav_tensor: tf.Tensor, sample_rate: int):
