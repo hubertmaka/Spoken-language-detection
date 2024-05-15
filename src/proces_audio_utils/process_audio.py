@@ -1,5 +1,5 @@
 import tensorflow as tf
-from hyperparameters import Hyperparameters as hparams
+from paths_info import PathsInfo as hparams
 import random
 
 class ProcessAudio:
