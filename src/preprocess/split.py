@@ -13,6 +13,8 @@ class SplitSet(HparamsMerger):
         self._df_val = None
         self._df_test = None
 
+        self._split_set()
+
     def _split_set(self) -> None:
         df_train = pd.DataFrame()
         df_val = pd.DataFrame()
@@ -44,9 +46,9 @@ class SplitSet(HparamsMerger):
 
     def get_filenames(self) -> dict[str, pd.DataFrame]:
         return {
-            'train': self._df_train['path'].apply(lambda fn: os.path.join(self.paths_info.LANG_DIRS.get(self.lang), fn)),
-            'val': self._df_val['path'].apply(lambda fn: os.path.join(self.paths_info.LANG_DIRS.get(self.lang), fn)),
-            'test': self._df_test['path'].apply(lambda fn: os.path.join(self.paths_info.LANG_DIRS.get(self.lang), fn))
+            'train': self._df_train['path'].apply(lambda fn: os.path.join(self.paths_info.LANG_DIRS.get(self.lang), 'clips', fn)),
+            'val': self._df_val['path'].apply(lambda fn: os.path.join(self.paths_info.LANG_DIRS.get(self.lang),'clips', fn)),
+            'test': self._df_test['path'].apply(lambda fn: os.path.join(self.paths_info.LANG_DIRS.get(self.lang),'clips', fn))
         }
 
     def get_sets(self) -> dict[str, pd.DataFrame]:

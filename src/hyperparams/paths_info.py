@@ -11,7 +11,7 @@ class MetaPathsInfo(type):
 class PathsInfo(metaclass=MetaPathsInfo):
     VALIDATED_FILENAME = 'validated.tsv'
     CLIP_DURATIONS_FILENAME = 'clip_durations.tsv'
-    LANG_DIR_PATH: str = os.path.join("..", "..", "..", "languages")
+    LANG_DIR_PATH: str = os.path.join("/", "home", "hubert", "Workspace", 'Python', 'ML Project', "languages")
     LANG_DIRS: dict[str, str] = {}
     VALIDATED_INFO_FILES_PATHS: dict[str, str] = []
     DURATION_INFO_FILES_PATHS: dict[str, str] = []
@@ -47,3 +47,10 @@ class PathsInfo(metaclass=MetaPathsInfo):
         cls._update_lang_dirs()
         cls._update_validated_info_files()
         cls._update_duration_info_files()
+
+
+p = PathsInfo()
+print(p.LANG_DIR_PATH)
+print(p.LANG_DIRS)
+print(p.VALIDATED_INFO_FILES_PATHS)
+print(p.DURATION_INFO_FILES_PATHS)

@@ -19,7 +19,6 @@ class AudioMetaInfo(HparamsMerger):
 
         self.initialize()
 
-
     def _filter_sex(self):
         man_filter = self.audio_info['gender'] == 'male_masculine'
         woman_filter = self.audio_info['gender'] == 'female_feminine'
