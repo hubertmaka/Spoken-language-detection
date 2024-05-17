@@ -1,14 +1,13 @@
 import tensorflow as tf
 import random
 import librosa
-
+import numpy as np
 
 class ProcessAudio:
     def __init__(self, audio_tensor: tf.Tensor, sample_rate: int):
         self._audio_tensor = audio_tensor
         self._sample_rate = sample_rate
         self._time_probes = self._audio_tensor.shape[0]
-        self._audio_np = self._audio_tensor.numpy()
 
     def change_amplitude_rand(self, min_increase: float = 0.5, max_increase: float = 2.0):
         increased_amp = self._audio_tensor * random.uniform(min_increase, max_increase)
@@ -48,12 +47,18 @@ class ProcessAudio:
 
     def change_pitch_rand(self, sample_rate=48_000, min_shift=2, max_shift=4) -> tf.Tensor:
         pitch_shift = random.randint(min_shift, max_shift)
-        pitched_audio = librosa.effects.pitch_shift(self._audio_np, sr=sample_rate, n_steps=pitch_shift)
+        audio = self._audio_tensor
+        if type(self._audio_tensor) is not np.ndarray:
+            audio = audio.numpy()
+        pitched_audio = librosa.effects.pitch_shift(audio, sr=sample_rate, n_steps=pitch_shift)
         return tf.convert_to_tensor(pitched_audio, dtype=tf.float32)
 
     def change_speed_rand(self, min_factor: float = 0.5, max_factor: float = 2.0) -> tf.Tensor:
         speed_factor = random.uniform(min_factor, max_factor)
-        stretched_audio = librosa.effects.time_stretch(self._audio_np, rate=speed_factor)
+        audio = self._audio_tensor
+        if type(self._audio_tensor) is not np.ndarray:
+            audio = audio.numpy()
+        stretched_audio = librosa.effects.time_stretch(audio, rate=speed_factor)
         return tf.convert_to_tensor(stretched_audio, dtype=tf.float32)
 
     def create_spectrogram(self):
@@ -61,7 +66,6 @@ class ProcessAudio:
         spectrogram = tf.abs(spectrogram)
         spectrogram = tf.expand_dims(spectrogram, axis=2)
         return spectrogram
-
 
 
 

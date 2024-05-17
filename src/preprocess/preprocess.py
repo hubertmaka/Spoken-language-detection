@@ -1,16 +1,20 @@
 import tensorflow as tf
 import tensorflow_io as tfio
-
+import random
 from src.preprocess.audio_metafiles import AudioMetaInfo
 from src.preprocess.split import SplitSet
 from src.hyperparams.paths_info import PathsInfo
+from src.preprocess.process_audio import ProcessAudio
+from src.hyperparams.set_hyperparameters import SetHyperparameters
 
 
 class Preprocess:
     SAMPLE_RATE = 48_000
     MAX_CLIENT_ID_AMOUNT = 1000
     MIN_CLIP_DURATION_MS = 4000
-    SET_SIZE = 3000
+    SET_SIZE = 800
+
+    SET_HPARAMS = SetHyperparameters(SET_SIZE)
 
     @staticmethod
     def add_zeros(wav, sample_rate):
@@ -20,7 +24,7 @@ class Preprocess:
         return tf.convert_to_tensor(padded_tensor, dtype=tf.float32)
 
     @staticmethod
-    def cut_wav(wav, sample_rate):
+    def cut_audio(wav, sample_rate):
         time_probes = wav.shape[0]
         # clip_dur_in_sec = time_probes / sample_rate
         overlap = int((time_probes - (Preprocess.MIN_CLIP_DURATION_MS / 1000) * sample_rate) / 2)
@@ -39,25 +43,52 @@ class Preprocess:
         return tf.convert_to_tensor(audio, dtype=tf.float32)
 
     @staticmethod
-    def load_and_align_probes(file_path):
-        audio = Preprocess.load_audio(file_path)
+    def align_probes(audio, sample_rate):
         expected_probes = int((Preprocess.MIN_CLIP_DURATION_MS / 1000) * Preprocess.SAMPLE_RATE)
-        # print(expected_probes)
+        print("EXPECTED", expected_probes)
         current_probes = audio.shape[0]
-        # print(current_probes)
+        print("CURRENT", current_probes)
         if expected_probes > current_probes:
-            # print("Add zeros")
-            return Preprocess.add_zeros(audio, Preprocess.SAMPLE_RATE)
+            print("ADD ZEROS")
+            return Preprocess.add_zeros(audio, sample_rate)
         elif expected_probes < current_probes:
-            # print("Cut wav")
-            return Preprocess.cut_wav(audio, Preprocess.SAMPLE_RATE)
+            print("CUT AUDIO")
+            return Preprocess.cut_audio(audio, sample_rate)
         return tf.convert_to_tensor(audio, dtype=tf.float32)
 
     @staticmethod
+    def load_and_align_probes(file_path):
+        audio = Preprocess.load_audio(file_path)
+        expected_probes = int((Preprocess.MIN_CLIP_DURATION_MS / 1000) * Preprocess.SAMPLE_RATE)
+        current_probes = audio.shape[0]
+        if expected_probes > current_probes:
+            return Preprocess.add_zeros(audio, Preprocess.SAMPLE_RATE)
+        elif expected_probes < current_probes:
+            return Preprocess.cut_audio(audio, Preprocess.SAMPLE_RATE)
+        return tf.convert_to_tensor(audio, dtype=tf.float32)
+
+    @staticmethod
+    def process_random_samples(dataset, num_samples_to_process):
+        processed_samples = []
+
+        shuffled_dataset = dataset.shuffle(buffer_size=len(dataset))
+        samples = shuffled_dataset.take(num_samples_to_process)
+        for sample in samples:
+            sample = ProcessAudio(sample, Preprocess.SAMPLE_RATE).add_noise_rand()
+            sample = ProcessAudio(sample, Preprocess.SAMPLE_RATE).change_amplitude_rand()
+            sample = random.choice([
+
+                ProcessAudio(sample, Preprocess.SAMPLE_RATE).time_masking_rand(),
+            ])
+            processed_samples.append(sample)
+        print(processed_samples)
+        return processed_samples
+
+    @staticmethod
     def preprocess():
-        train_dataset = None
-        val_dataset = None
-        test_dataset = None
+        train_dataset = tf.data.Dataset.from_tensor_slices([])
+        val_dataset = tf.data.Dataset.from_tensor_slices([])
+        test_dataset = tf.data.Dataset.from_tensor_slices([])
         for lang in PathsInfo.get_languages():
             print(f"PROCESSED LANGUAGES: {lang}")
             audio_meta_info = AudioMetaInfo(
@@ -67,54 +98,75 @@ class Preprocess:
                 lang=lang
             )
 
-            print(f"---AUDIO META INFO DONE---")
+            print(f"---AUDIO META INFO DONE {lang}---")
 
             df_men = audio_meta_info.get_df_men()
             df_women = audio_meta_info.get_df_women()
 
-            df_filenames = SplitSet(
-                df=df_men,
-                max_client_id_amount=Preprocess.MAX_CLIENT_ID_AMOUNT,
-                min_clip_duration_ms=Preprocess.MIN_CLIP_DURATION_MS,
-                set_size=Preprocess.SET_SIZE,
-                lang=lang
-            ).get_filenames()
+            for num, gender_df in enumerate([df_men, df_women]):
+                df_filenames = SplitSet(
+                    df=gender_df,
+                    max_client_id_amount=Preprocess.MAX_CLIENT_ID_AMOUNT,
+                    min_clip_duration_ms=Preprocess.MIN_CLIP_DURATION_MS,
+                    set_size=Preprocess.SET_SIZE,
+                    lang=lang
+                ).get_filenames()
 
-            print(f"---MEN SET SPLIT DONE---")
+                print(f"---SET SPLIT DONE {num} {lang}---")
 
-            train_dataset = tf.data.Dataset.from_tensor_slices(
-                df_filenames.get('train').apply(lambda filename: Preprocess.load_and_align_probes(filename)).to_list()
-            )
-            val_dataset = tf.data.Dataset.from_tensor_slices(
-                df_filenames.get('val').apply(lambda filename: Preprocess.load_and_align_probes(filename)).to_list()
-            )
-            test_dataset = tf.data.Dataset.from_tensor_slices(
-                df_filenames.get('test').apply(lambda filename: Preprocess.load_and_align_probes(filename)).to_list()
-            )
+                train_dataset_tmp = tf.data.Dataset.from_tensor_slices(
+                    df_filenames.get('train').apply(lambda filename: Preprocess.load_and_align_probes(filename)).to_list()
+                )
+                val_dataset_tmp = tf.data.Dataset.from_tensor_slices(
+                    df_filenames.get('val').apply(lambda filename: Preprocess.load_and_align_probes(filename)).to_list()
+                )
+                test_dataset_tmp = tf.data.Dataset.from_tensor_slices(
+                    df_filenames.get('test').apply(lambda filename: Preprocess.load_and_align_probes(filename)).to_list()
+                )
 
-            print(f"---DATASET MEN DONE DONE---")
+                print(f"---DATASET DONE DONE {num} {lang}---")
 
-            # TODO AUDIO AUGUMENT CLASS, REST OF DATA PIPELINE
+                filled_samples = Preprocess.process_random_samples(
+                    train_dataset_tmp, Preprocess.SET_HPARAMS.train_size - len(train_dataset_tmp)
+                )
+                print([sample.shape for sample in filled_samples])
+                filled_samples = [Preprocess.align_probes(tensor, Preprocess.SAMPLE_RATE) for tensor in filled_samples]
+                print([sample.shape for sample in filled_samples])
+                filled_samples = tf.data.Dataset.from_tensor_slices(filled_samples)
 
-            # print(train_dataset.as_numpy_iterator().next())
-            # train_filenames, val_filenames, test_filenames = SplitSet(
-            #     df=df_women,
-            #     max_client_id_amount=Preprocess.MAX_CLIENT_ID_AMOUNT,
-            #     min_clip_duration_ms=Preprocess.MIN_CLIP_DURATION_MS,
-            #     set_size=Preprocess.SET_SIZE,
-            #     lang=lang
-            # ).get_filenames()
-            #
-            #
-            # train_dataset = tf.data.Dataset.from_tensor_slices(
-            #     train_filenames.apply(lambda filename: Preprocess.load_and_align_probes(filename)).to_list()
-            # )
-            # val_dataset = tf.data.Dataset.from_tensor_slices(
-            #     val_filenames.apply(lambda filename: Preprocess.load_and_align_probes(filename)).to_list()
-            # )
-            # test_dataset = tf.data.Dataset.from_tensor_slices(
-            #     test_dataset.apply(lambda filename: Preprocess.load_and_align_probes(filename)).to_list()
-            # )
+                train_dataset_tmp = train_dataset_tmp.concatenate(filled_samples)
+
+                print(f"---DATASET TRAIN FILL DONE {num} {lang}---")
+
+                train_dataset = train_dataset.concatenate(train_dataset_tmp)
+                val_dataset = val_dataset.concatenate(val_dataset_tmp)
+                test_dataset = test_dataset.concatenate(test_dataset_tmp)
+
+                del train_dataset_tmp
+
+            del df_men
+            del df_women
+
+        train_dataset = train_dataset.map(lambda audio: ProcessAudio(audio, Preprocess.SAMPLE_RATE).normalize_audio())
+        val_dataset = val_dataset.map(lambda audio: ProcessAudio(audio, Preprocess.SAMPLE_RATE).normalize_audio())
+        test_dataset = test_dataset.map(lambda audio: ProcessAudio(audio, Preprocess.SAMPLE_RATE).normalize_audio())
+
+        train_dataset = train_dataset.map(lambda audio: ProcessAudio(audio, Preprocess.SAMPLE_RATE).create_spectrogram())
+        val_dataset = val_dataset.map(lambda audio: ProcessAudio(audio, Preprocess.SAMPLE_RATE).create_spectrogram())
+        test_dataset = test_dataset.map(lambda audio: ProcessAudio(audio, Preprocess.SAMPLE_RATE).create_spectrogram())
+
+        train_dataset = tf.data.Dataset.zip((
+            train_dataset, tf.data.Dataset.from_tensor_slices(tf.ones(len(train_dataset)))
+        ))
+        val_dataset = tf.data.Dataset.zip((val_dataset, tf.data.Dataset.from_tensor_slices(tf.ones(len(val_dataset)))
+        ))
+        test_dataset = tf.data.Dataset.zip((test_dataset, tf.data.Dataset.from_tensor_slices(
+            tf.ones(len(test_dataset)))))
+
+        print(train_dataset.as_numpy_iterator().next())
+        print(val_dataset.as_numpy_iterator().next())
+        print(test_dataset.as_numpy_iterator().next())
+
 
 
 Preprocess.preprocess()
