@@ -9,7 +9,8 @@ from src.hyperparams.set_hyperparameters import SetHyperparameters
 
 
 class Preprocess:
-    SAMPLE_RATE = 48_000
+    ORIGIN_SAMPLE_RATE = 48_000
+    SAMPLE_RATE = 16_000
     MAX_CLIENT_ID_AMOUNT = 1000
     MIN_CLIP_DURATION_MS = 4000
     SET_SIZE = 300
@@ -17,25 +18,31 @@ class Preprocess:
     SET_HPARAMS = SetHyperparameters(SET_SIZE)
 
     @staticmethod
-    def add_zeros(wav, sample_rate):
-        time_probes = wav.shape[0]
+    def add_zeros(audio: tf.Tensor, sample_rate):
+        time_probes = audio.shape[0]
         missing_probes_one_side = int((Preprocess.MIN_CLIP_DURATION_MS / 1000 * sample_rate - time_probes) // 2)
-        padded_tensor = tf.pad(wav.numpy(), [[missing_probes_one_side, missing_probes_one_side]])
+        padded_tensor = tf.pad(audio.numpy(), [[missing_probes_one_side, missing_probes_one_side]])
         return tf.convert_to_tensor(padded_tensor, dtype=tf.float32)
 
     @staticmethod
-    def cut_audio(wav, sample_rate):
-        time_probes = wav.shape[0]
+    def cut_audio(audio, sample_rate):
+        time_probes = audio.shape[0]
         overlap = int((time_probes - (Preprocess.MIN_CLIP_DURATION_MS / 1000) * sample_rate) / 2)
-        cut_clip = wav[overlap:(time_probes - overlap)]
+        cut_clip = audio[overlap:(time_probes - overlap)]
         return tf.convert_to_tensor(cut_clip, dtype=tf.float32)
 
     @staticmethod
-    def load_audio(filename, fin_sam_rate=16_000):
+    def load_resample_audio(filename: str) -> tf.Tensor:
         file_content = tf.io.read_file(filename)
         audio = tfio.audio.decode_mp3(file_content)
         audio = tf.squeeze(audio, axis=-1)
+        audio = Preprocess.resample_audio(audio, Preprocess.ORIGIN_SAMPLE_RATE, Preprocess.SAMPLE_RATE)
         return tf.convert_to_tensor(audio, dtype=tf.float32)
+
+    @staticmethod
+    def resample_audio(audio: tf.Tensor, curr_sr: int, fin_sr: int):
+        curr_sr = tf.cast(curr_sr, tf.int64)
+        return tfio.audio.resample(audio, rate_in=curr_sr, rate_out=fin_sr)
 
     @staticmethod
     def align_probes(audio, sample_rate):
@@ -49,7 +56,7 @@ class Preprocess:
 
     @staticmethod
     def load_and_align_probes(file_path):
-        audio = Preprocess.load_audio(file_path)
+        audio = Preprocess.load_resample_audio(file_path)
         expected_probes = int((Preprocess.MIN_CLIP_DURATION_MS / 1000) * Preprocess.SAMPLE_RATE)
         current_probes = audio.shape[0]
         if expected_probes > current_probes:
@@ -82,6 +89,7 @@ class Preprocess:
         languages = PathsInfo.get_languages()
         language_to_index = {lang: idx for idx, lang in enumerate(languages)}
 
+        @tf.function
         def one_hot_encode_language(lang):
             lang_index = language_to_index[lang]
             one_hot = tf.one_hot(lang_index, len(languages))
@@ -100,6 +108,8 @@ class Preprocess:
 
             df_men = audio_meta_info.get_df_men()
             df_women = audio_meta_info.get_df_women()
+
+            del audio_meta_info
 
             for num, gender_df in enumerate([df_men, df_women]):
                 df_filenames = SplitSet(
@@ -150,6 +160,7 @@ class Preprocess:
                 val_dataset = val_dataset.concatenate(val_dataset_tmp)
                 test_dataset = test_dataset.concatenate(test_dataset_tmp)
 
+                del df_filenames
                 del filled_samples
                 del train_dataset_tmp
 
@@ -169,17 +180,22 @@ class Preprocess:
         # val_dataset = val_dataset.cache()
         # test_dataset = test_dataset.cache()
         print("SHUFFLE")
-        train_dataset = train_dataset.shuffle(buffer_size=1000)
-        val_dataset = val_dataset.shuffle(buffer_size=1000)
-        test_dataset = test_dataset.shuffle(buffer_size=1000)
+        train_dataset = train_dataset.shuffle(buffer_size=(Preprocess.SET_HPARAMS.train_size // 5))
+        val_dataset = val_dataset.shuffle(buffer_size=(Preprocess.SET_HPARAMS.val_size // 5))
+        test_dataset = test_dataset.shuffle(buffer_size=(Preprocess.SET_HPARAMS.test_size // 5))
 
         print("BATCHING")
         train_dataset = train_dataset.batch(16)
         val_dataset = val_dataset.batch(16)
         test_dataset = test_dataset.batch(16)
-        print(train_dataset.as_numpy_iterator().next())
-        print(val_dataset.as_numpy_iterator().next())
-        print(test_dataset.as_numpy_iterator().next())
+
+        samples, labels = train_dataset.as_numpy_iterator().next()
+        print()
+        print(samples.shape, labels.shape)
+        samples, labels = val_dataset.as_numpy_iterator().next()
+        print(samples.shape, labels.shape)
+        samples, labels = test_dataset.as_numpy_iterator().next()
+        print(samples.shape, labels.shape)
 
         return train_dataset, val_dataset, test_dataset
 
