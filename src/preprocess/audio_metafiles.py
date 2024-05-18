@@ -33,10 +33,10 @@ class AudioMetaInfo(HparamsMerger):
     def _filter_rows(self, df: pd.DataFrame) -> pd.DataFrame:
         rows_over = df[df['duration[ms]'] >= self.audio_hyperparameters.min_clip_duration_ms]
         rows_under = df[df['duration[ms]'] < self.audio_hyperparameters.min_clip_duration_ms]
-        if len(rows_over) >= self.set_hyperparameters.set_size // 2:
+        if len(rows_over) >= self.set_hyperparameters.set_size:
             df = rows_over
         else:
-            df = pd.concat([rows_over, rows_under], ignore_index=True)[:self.set_hyperparameters.set_size]
+            df = pd.concat([rows_over, rows_under], ignore_index=True)[:(self.set_hyperparameters.set_size)]
         return df
 
     def initialize(self):

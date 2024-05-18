@@ -13,7 +13,7 @@ class Preprocess:
     SAMPLE_RATE = 16_000
     MAX_CLIENT_ID_AMOUNT = 1000
     MIN_CLIP_DURATION_MS = 4000
-    SET_SIZE = 300
+    SET_SIZE = 100
 
     SET_HPARAMS = SetHyperparameters(SET_SIZE)
 
@@ -81,7 +81,7 @@ class Preprocess:
         return processed_samples
 
     @staticmethod
-    def preprocess():
+    def preprocess() -> tuple[tf.data.Dataset[tuple[any, any]]]:
         train_dataset = tf.data.Dataset.from_tensor_slices(([], []))
         val_dataset = tf.data.Dataset.from_tensor_slices(([], []))
         test_dataset = tf.data.Dataset.from_tensor_slices(([], []))
@@ -100,7 +100,7 @@ class Preprocess:
             audio_meta_info = AudioMetaInfo(
                 max_client_id_amount=Preprocess.MAX_CLIENT_ID_AMOUNT,
                 min_clip_duration_ms=Preprocess.MIN_CLIP_DURATION_MS,
-                set_size=Preprocess.SET_SIZE,
+                set_size=(Preprocess.SET_SIZE // 2),
                 lang=lang
             )
 
@@ -116,7 +116,7 @@ class Preprocess:
                     df=gender_df,
                     max_client_id_amount=Preprocess.MAX_CLIENT_ID_AMOUNT,
                     min_clip_duration_ms=Preprocess.MIN_CLIP_DURATION_MS,
-                    set_size=Preprocess.SET_SIZE,
+                    set_size=(Preprocess.SET_SIZE // 2),
                     lang=lang
                 ).get_filenames()
 
@@ -146,7 +146,7 @@ class Preprocess:
                 print(f"---DATASET DONE {num} {lang}---")
 
                 filled_samples = Preprocess.process_random_samples(
-                    train_dataset_tmp, Preprocess.SET_HPARAMS.train_size - len(train_dataset_tmp)
+                    train_dataset_tmp, (Preprocess.SET_HPARAMS.train_size // 2) - len(train_dataset_tmp)
                 )
 
                 filled_audio_samples = tf.data.Dataset.from_tensor_slices([Preprocess.align_probes(tensor[0], Preprocess.SAMPLE_RATE) for tensor in filled_samples])
@@ -163,6 +163,8 @@ class Preprocess:
                 del df_filenames
                 del filled_samples
                 del train_dataset_tmp
+                del val_dataset_tmp
+                del test_dataset_tmp
 
             del df_men
             del df_women
@@ -175,7 +177,7 @@ class Preprocess:
         val_dataset = val_dataset.map(lambda audio, label: (ProcessAudio(audio, Preprocess.SAMPLE_RATE).create_spectrogram(), label))
         test_dataset = test_dataset.map(lambda audio, label: (ProcessAudio(audio, Preprocess.SAMPLE_RATE).create_spectrogram(), label))
 
-        print("CACHING")
+        # print("CACHING")
         # train_dataset = train_dataset.cache()
         # val_dataset = val_dataset.cache()
         # test_dataset = test_dataset.cache()
@@ -185,18 +187,10 @@ class Preprocess:
         test_dataset = test_dataset.shuffle(buffer_size=(Preprocess.SET_HPARAMS.test_size // 5))
 
         print("BATCHING")
+        # train_dataset = train_dataset.batch(16, drop_remainder=True)
         train_dataset = train_dataset.batch(16)
         val_dataset = val_dataset.batch(16)
         test_dataset = test_dataset.batch(16)
 
-        samples, labels = train_dataset.as_numpy_iterator().next()
-        print()
-        print(samples.shape, labels.shape)
-        samples, labels = val_dataset.as_numpy_iterator().next()
-        print(samples.shape, labels.shape)
-        samples, labels = test_dataset.as_numpy_iterator().next()
-        print(samples.shape, labels.shape)
-
         return train_dataset, val_dataset, test_dataset
 
-Preprocess.preprocess()
