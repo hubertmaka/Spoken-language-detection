@@ -36,7 +36,7 @@ class AudioMetaInfo(HparamsMerger):
         if len(rows_over) >= self.set_hyperparameters.set_size:
             df = rows_over
         else:
-            df = pd.concat([rows_over, rows_under], ignore_index=True)[:(self.set_hyperparameters.set_size)]
+            df = pd.concat([rows_over, rows_under], ignore_index=True)[:self.set_hyperparameters.set_size]
         return df
 
     def initialize(self):

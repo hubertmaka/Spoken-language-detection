@@ -29,7 +29,7 @@ class SplitSet(HparamsMerger):
                 if len(df_test) < self.set_hyperparameters.test_size:
                     df_test = pd.concat([df_test, rows_form_origin_df[:(self.set_hyperparameters.test_size - len(df_test))]], ignore_index=True)
                     continue
-                if len(rows_form_origin_df) <= (self.set_hyperparameters.val_size- len(df_val)):
+                if len(rows_form_origin_df) <= (self.set_hyperparameters.val_size - len(df_val)):
                     df_val = pd.concat([df_val, rows_form_origin_df], ignore_index=True)
                     continue
                 if len(df_val) < self.set_hyperparameters.val_size:
@@ -47,6 +47,9 @@ class SplitSet(HparamsMerger):
         self._df_test = df_test
 
     def get_filenames(self) -> dict[str, pd.DataFrame]:
+        # print(self._df_train)
+        # print(self._df_val)
+        # print(self._df_test)
         return {
             'train': self._df_train['path'].apply(lambda fn: os.path.join(self.paths_info.LANG_DIRS.get(self.lang), 'clips', fn)),
             'val': self._df_val['path'].apply(lambda fn: os.path.join(self.paths_info.LANG_DIRS.get(self.lang),'clips', fn)),

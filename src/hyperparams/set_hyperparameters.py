@@ -13,12 +13,12 @@ class SetHyperparameters:
         self._check_property()
 
     def _set_train_val_test_sizes(self) -> None:
-        self._train_size = int(self._set_size * 0.6)
-        self._val_size = int((self._set_size - self._train_size) // 2)
-        self._test_size = int(self._set_size - self._train_size - self._val_size)
+        self._train_size = int(self._set_size * 0.6) if self._set_size % 2 == 0 else int(self._set_size * 0.6) - 1
+        self._val_size = int((self._set_size - self._train_size) // 2) if self._train_size % 2 == 0 else int((self._set_size - self._train_size) // 2) - 1
+        self._test_size = int(self._val_size)
 
     def _check_property(self) -> None:
-        if (self._train_size + self._val_size + self._test_size) != self._set_size:
+        if (self._train_size + self._val_size + self._test_size) > self._set_size:
             raise ex.SetsNotEqualException(self._train_size, self._val_size, self._test_size, self._set_size)
 
     @property
