@@ -1,18 +1,15 @@
-from typing import Any, List, Tuple
+from typing import Any
 
-import tensorflow as tf
-import tensorflow_io as tfio
 import random
 
 import src.preprocess.exceptions as ex
 from src.preprocess.audio_metafiles import AudioMetaInfo
 from src.preprocess.split import SplitSet
 from src.hyperparams.paths_info import PathsInfo
-from src.preprocess.process_audio import ProcessAudio
+
 from src.hyperparams.set_hyperparameters import SetHyperparameters
 
-
-class Preprocess:
+class Preprocess():
     ORIGIN_SAMPLE_RATE: int = 48_000
     SAMPLE_RATE: int = 16_000
     MAX_CLIENT_ID_AMOUNT: int = 1000
@@ -24,10 +21,13 @@ class Preprocess:
     TRAIN_FILENAMES: list[tuple[str, int]] = []
     VAL_FILENAMES: list[tuple[str, int]] = []
     TEST_FILENAMES: list[tuple[str, int]] = []
-    train_dataset = tf.data.Dataset.from_tensor_slices(([], []))
-    val_dataset = tf.data.Dataset.from_tensor_slices(([], []))
-    test_dataset = tf.data.Dataset.from_tensor_slices(([], []))
+    # train_dataset = tf.data.Dataset.from_tensor_slices(([], []))
+    # val_dataset = tf.data.Dataset.from_tensor_slices(([], []))
+    # test_dataset = tf.data.Dataset.from_tensor_slices(([], []))
     MIN_TRAIN_SET_FILL = 100
+
+    languages = PathsInfo.get_languages()
+    language_to_index = {lang: idx for idx, lang in enumerate(languages)}
 
     @classmethod
     def set_origin_sample_rate(cls, rate: int) -> None:
@@ -70,96 +70,16 @@ class Preprocess:
             raise ValueError("Batch size must be positive")
         cls.BATCH_SIZE = batch_size
 
-    @staticmethod
-    def add_zeros(audio: tf.Tensor, sample_rate) -> tf.Tensor:
-        time_probes = audio.shape[0]
-        missing_probes_one_side = int((Preprocess.MIN_CLIP_DURATION_MS / 1000 * sample_rate - time_probes) / 2)
-        padded_tensor = tf.pad(audio.numpy(), [[missing_probes_one_side, missing_probes_one_side]])
-        return tf.convert_to_tensor(padded_tensor, dtype=tf.float32)
-
-    @staticmethod
-    def cut_audio(audio: tf.Tensor, sample_rate: int) -> tf.Tensor:
-        time_probes = audio.shape[0]
-        overlap = int((time_probes - (Preprocess.MIN_CLIP_DURATION_MS / 1000) * sample_rate) / 2)
-        cut_clip = audio[overlap:(time_probes - overlap)]
-        return tf.convert_to_tensor(cut_clip, dtype=tf.float32)
-
-    @staticmethod
-    def load_resample_audio(filename: str) -> tf.Tensor:
-        file_content = tf.io.read_file(filename)
-        audio = tfio.audio.decode_mp3(file_content)
-        audio = tf.squeeze(audio, axis=-1)
-        audio = Preprocess.resample_audio(audio, Preprocess.ORIGIN_SAMPLE_RATE, Preprocess.SAMPLE_RATE)
-        return tf.convert_to_tensor(audio, dtype=tf.float32)
-
-    @staticmethod
-    @tf.function(reduce_retracing=True)
-    def resample_audio(audio: tf.Tensor, curr_sr: int, fin_sr: int) -> tf.Tensor:
-        curr_sr = tf.cast(curr_sr, tf.int64)
-        return tfio.audio.resample(audio, rate_in=curr_sr, rate_out=fin_sr)
-
-    @staticmethod
-    def align_probes(audio: tf.Tensor, sample_rate: int) -> tf.Tensor:
-        expected_probes = int((Preprocess.MIN_CLIP_DURATION_MS / 1000) * Preprocess.SAMPLE_RATE)
-        current_probes = audio.shape[0]
-        if expected_probes > current_probes:
-            audio = Preprocess.add_zeros(audio, sample_rate)
-        elif expected_probes < current_probes:
-            audio = Preprocess.cut_audio(audio, sample_rate)
-        return tf.convert_to_tensor(audio, dtype=tf.float32)
-
-    @staticmethod
-    def load_and_align_probes(file_path: str) -> tf.Tensor:
-        audio = Preprocess.load_resample_audio(file_path)
-        expected_probes = int((Preprocess.MIN_CLIP_DURATION_MS / 1000) * Preprocess.SAMPLE_RATE)
-        current_probes = audio.shape[0]
-        if expected_probes > current_probes:
-            audio = Preprocess.add_zeros(audio, Preprocess.SAMPLE_RATE)
-        elif expected_probes < current_probes:
-            audio = Preprocess.cut_audio(audio, Preprocess.SAMPLE_RATE)
-        return tf.convert_to_tensor(audio, dtype=tf.float32)
-
-    @staticmethod
-    def process_random_samples(dataset: tf.data.Dataset, num_samples_to_process: int) -> list[tuple[tf.Tensor, tf.Tensor]]:
-        processed_samples = []
-
-        shuffled_dataset = dataset.shuffle(buffer_size=10)
-        samples = shuffled_dataset.take(num_samples_to_process)
-        for audio, label in samples:
-            audio = ProcessAudio(audio, Preprocess.SAMPLE_RATE).add_noise_rand()
-            audio = ProcessAudio(audio, Preprocess.SAMPLE_RATE).change_amplitude_rand()
-            audio = random.choice([
-                ProcessAudio(audio, Preprocess.SAMPLE_RATE).time_masking_rand(),
-            ])
-            processed_samples.append((audio, label))
-        return processed_samples
-
-    @staticmethod
-    def _split_filenames() -> None:
-
-        languages = PathsInfo.get_languages()
-        language_to_index = {lang: idx for idx, lang in enumerate(languages)}
-        print(language_to_index)
-
-        @tf.function
-        def one_hot_encode_language(lang):
-            lang_index = language_to_index[lang]
-            one_hot = tf.one_hot(lang_index, len(languages))
-            return one_hot
-
-        def set_shapes(audio, label, audio_shape, label_shape):
-            audio.set_shape(audio_shape)
-            label.set_shape(label_shape)
-            return audio, label
-
+    @classmethod
+    def _split_filenames(cls) -> None:
         for lang in PathsInfo.get_languages():
-            men_size = Preprocess.ONE_LANG_GENDER_SET_SIZE
-            women_size = Preprocess.ONE_LANG_GENDER_SET_SIZE
+            men_size = cls.ONE_LANG_GENDER_SET_SIZE
+            women_size = cls.ONE_LANG_GENDER_SET_SIZE
             print(f"PROCESSED LANGUAGES: {lang}")
             audio_meta_info = AudioMetaInfo(
-                max_client_id_amount=Preprocess.MAX_CLIENT_ID_AMOUNT,
-                min_clip_duration_ms=Preprocess.MIN_CLIP_DURATION_MS,
-                set_size=Preprocess.ONE_LANG_GENDER_SET_SIZE,
+                max_client_id_amount=cls.MAX_CLIENT_ID_AMOUNT,
+                min_clip_duration_ms=cls.MIN_CLIP_DURATION_MS,
+                set_size=cls.ONE_LANG_GENDER_SET_SIZE,
                 lang=lang
             )
 
@@ -168,10 +88,10 @@ class Preprocess:
             df_men = audio_meta_info.get_df_men()
             df_women = audio_meta_info.get_df_women()
 
-            if len(df_women) <= Preprocess.SET_HPARAMS.test_size // 2 + Preprocess.SET_HPARAMS.val_size // 2 + Preprocess.MIN_TRAIN_SET_FILL:
-                missing_women_probes = Preprocess.SET_HPARAMS.test_size // 2 + Preprocess.SET_HPARAMS.val_size // 2 + Preprocess.MIN_TRAIN_SET_FILL - len(df_women)
-                men_size = Preprocess.ONE_LANG_GENDER_SET_SIZE + missing_women_probes
-                women_size = Preprocess.ONE_LANG_GENDER_SET_SIZE - missing_women_probes
+            if len(df_women) <= cls.SET_HPARAMS.test_size // 2 + cls.SET_HPARAMS.val_size // 2 + cls.MIN_TRAIN_SET_FILL:
+                missing_women_probes = cls.SET_HPARAMS.test_size // 2 + cls.SET_HPARAMS.val_size // 2 + cls.MIN_TRAIN_SET_FILL - len(df_women)
+                men_size = cls.ONE_LANG_GENDER_SET_SIZE + missing_women_probes
+                women_size = cls.ONE_LANG_GENDER_SET_SIZE - missing_women_probes
                 print("MISSING PROBES")
 
             for num, gender_df in enumerate([df_men, df_women]):
@@ -179,8 +99,8 @@ class Preprocess:
 
                 df_filenames = SplitSet(
                     df=gender_df,
-                    max_client_id_amount=Preprocess.MAX_CLIENT_ID_AMOUNT,
-                    min_clip_duration_ms=Preprocess.MIN_CLIP_DURATION_MS,
+                    max_client_id_amount=cls.MAX_CLIENT_ID_AMOUNT,
+                    min_clip_duration_ms=cls.MIN_CLIP_DURATION_MS,
                     set_size=(men_size if num == 0 else women_size),
                     lang=lang
                 ).get_filenames()
@@ -203,16 +123,13 @@ class Preprocess:
                         tuned_set_size.val_size // 2 - len(df_filenames.get('val'))
                     )
 
-                Preprocess.TEST_FILENAMES.extend([(path, language_to_index.get(lang)) for path in df_filenames.get('test')])
-                Preprocess.VAL_FILENAMES.extend([(path, language_to_index.get(lang)) for path in df_filenames.get('val')])
-                Preprocess.TRAIN_FILENAMES.extend([(path, language_to_index.get(lang)) for path in df_filenames.get('train')])
+                cls.TEST_FILENAMES.extend([(path, cls.language_to_index.get(lang)) for path in df_filenames.get('test')])
+                cls.VAL_FILENAMES.extend([(path, cls.language_to_index.get(lang)) for path in df_filenames.get('val')])
+                cls.TRAIN_FILENAMES.extend([(path, cls.language_to_index.get(lang)) for path in df_filenames.get('train')])
 
                 missing_probes = tuned_set_size.train_size - len(df_filenames.get('train'))
                 print(f"Missing probes: {missing_probes}")
-                Preprocess.TRAIN_FILENAMES.extend([(path, language_to_index.get(lang)) for path in df_filenames.get('train').sample(missing_probes, replace=True)])
-
-
-
+                cls.TRAIN_FILENAMES.extend([(path, cls.language_to_index.get(lang)) for path in df_filenames.get('train').sample(missing_probes, replace=True)])
 
                 print("Tuned train size:", tuned_set_size.train_size)
                 print("Tuned val size:", tuned_set_size.val_size)
@@ -224,16 +141,26 @@ class Preprocess:
                 print("--------------------------")
                 print("--------------------------")
 
-    @staticmethod
-    def _shuffle_filenames() -> None:
-        random.shuffle(Preprocess.TEST_FILENAMES)
-        random.shuffle(Preprocess.VAL_FILENAMES)
-        random.shuffle(Preprocess.TRAIN_FILENAMES)
+    @classmethod
+    def _shuffle_filenames(cls) -> None:
+        random.shuffle(cls.TEST_FILENAMES)
+        random.shuffle(cls.VAL_FILENAMES)
+        random.shuffle(cls.TRAIN_FILENAMES)
 
-    @staticmethod
-    def preprocess_probes():
-        Preprocess._split_filenames()
-        Preprocess._shuffle_filenames()
+    @classmethod
+    def initialize(cls, **kwargs: Any) -> None:
+        attributes: dict[str, Any] = {key: val for key, val in kwargs.items()}
+        cls.set_origin_sample_rate(attributes['origin_sample_rate'])
+        cls.set_final_sample_rate(attributes['final_sample_rate'])
+        cls.set_max_client_id_amount(attributes['max_client_id_amount'])
+        cls.set_min_clip_duration_ms(attributes['min_clip_duration_ms'])
+        cls.set_set_size(attributes['set_size'])
+        cls.set_batch_size(attributes['batch_size'])
+
+    @classmethod
+    def preprocess_probes(cls) -> None:
+        cls._split_filenames()
+        cls._shuffle_filenames()
 
 
                 # train_filenames = df_filenames.get('train').apply(lambda filename: Preprocess.load_and_align_probes(filename)).to_list()
@@ -352,23 +279,14 @@ MAX_CLIENT_ID_AMOUNT = 3000
 MIN_CLIP_DURATION_MS = 2000
 SET_SIZE = 34_000
 BATCH_SIZE = 32
-#%%
-Preprocess.set_origin_sample_rate(ORIGIN_SAMPLE_RATE)
-Preprocess.set_final_sample_rate(FINAL_SAMPLE_RATE)
-Preprocess.set_max_client_id_amount(MAX_CLIENT_ID_AMOUNT)
-Preprocess.set_min_clip_duration_ms(MIN_CLIP_DURATION_MS)
-Preprocess.set_set_size(SET_SIZE)
-Preprocess.set_batch_size(BATCH_SIZE)
 
+Preprocess.initialize(
+    batch_size=BATCH_SIZE,
+    max_client_id_amount=MAX_CLIENT_ID_AMOUNT,
+    min_clip_duration_ms=MIN_CLIP_DURATION_MS,
+    set_size=SET_SIZE,
+    origin_sample_rate=ORIGIN_SAMPLE_RATE,
+    final_sample_rate=FINAL_SAMPLE_RATE,
+)
 
-
-
-Preprocess._split_filenames()
-
-# print(len(Preprocess.TRAIN_FILENAMES))
-# print(len(Preprocess.VAL_FILENAMES))
-# print(len(Preprocess.TEST_FILENAMES))
-#
-# print(Preprocess.TRAIN_FILENAMES)
-# print(Preprocess.TEST_FILENAMES)
-print(Preprocess.VAL_FILENAMES)
+Preprocess.preprocess_probes()
