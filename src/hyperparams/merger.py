@@ -1,5 +1,5 @@
-from src.hyperparams.audio_hyperparameters import AudioHyperparameters
-from src.hyperparams.set_hyperparameters import SetHyperparameters
+from src.hyperparams.sample_hparams import AudioHyperparameters
+from src.hyperparams.set_hparams import SetHyperparameters
 from src.hyperparams.paths_info import PathsInfo
 
 

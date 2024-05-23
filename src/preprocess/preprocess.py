@@ -3,19 +3,21 @@ from typing import Any
 import random
 
 import src.preprocess.exceptions as ex
-from src.preprocess.audio_metafiles import AudioMetaInfo
+from src.preprocess.meta_info import AudioMetaInfo
 from src.preprocess.split import SplitSet
 from src.hyperparams.paths_info import PathsInfo
 
-from src.hyperparams.set_hyperparameters import SetHyperparameters
+from src.hyperparams.set_hparams import SetHyperparameters
 
-class Preprocess():
+
+class Preprocess:
     ORIGIN_SAMPLE_RATE: int = 48_000
     SAMPLE_RATE: int = 16_000
     MAX_CLIENT_ID_AMOUNT: int = 1000
     MIN_CLIP_DURATION_MS: int = 4000
     SET_SIZE: int
     ONE_LANG_SET_SIZE: int
+    ONE_LANG_GENDER_SET_SIZE: int
     SET_HPARAMS: SetHyperparameters
     BATCH_SIZE: int = 32
     TRAIN_FILENAMES: list[tuple[str, int]] = []
@@ -25,9 +27,8 @@ class Preprocess():
     # val_dataset = tf.data.Dataset.from_tensor_slices(([], []))
     # test_dataset = tf.data.Dataset.from_tensor_slices(([], []))
     MIN_TRAIN_SET_FILL = 100
-
-    languages = PathsInfo.get_languages()
-    language_to_index = {lang: idx for idx, lang in enumerate(languages)}
+    LANGUAGES = PathsInfo.get_languages()
+    LANGUAGES_TO_INDEX = {lang: idx for idx, lang in enumerate(LANGUAGES)}
 
     @classmethod
     def set_origin_sample_rate(cls, rate: int) -> None:
@@ -57,12 +58,10 @@ class Preprocess():
     def set_set_size(cls, set_size: int) -> None:
         if set_size <= 0:
             raise ValueError("Set size must be positive")
-        # print(type(cls.SET_SIZE))
         cls.SET_SIZE = set_size
         cls.ONE_LANG_SET_SIZE = (cls.SET_SIZE // len(PathsInfo.get_languages()))
         cls.ONE_LANG_GENDER_SET_SIZE = cls.ONE_LANG_SET_SIZE // 2 if cls.SET_SIZE % 2 == 0 else cls.ONE_LANG_SET_SIZE // 2 - 1
         cls.SET_HPARAMS = SetHyperparameters(cls.ONE_LANG_SET_SIZE)
-        print(type(cls.SET_SIZE))
 
     @classmethod
     def set_batch_size(cls, batch_size: int) -> None:
@@ -123,23 +122,23 @@ class Preprocess():
                         tuned_set_size.val_size // 2 - len(df_filenames.get('val'))
                     )
 
-                cls.TEST_FILENAMES.extend([(path, cls.language_to_index.get(lang)) for path in df_filenames.get('test')])
-                cls.VAL_FILENAMES.extend([(path, cls.language_to_index.get(lang)) for path in df_filenames.get('val')])
-                cls.TRAIN_FILENAMES.extend([(path, cls.language_to_index.get(lang)) for path in df_filenames.get('train')])
+                cls.TEST_FILENAMES.extend([(path, cls.LANGUAGES_TO_INDEX.get(lang)) for path in df_filenames.get('test')])
+                cls.VAL_FILENAMES.extend([(path, cls.LANGUAGES_TO_INDEX.get(lang)) for path in df_filenames.get('val')])
+                cls.TRAIN_FILENAMES.extend([(path, cls.LANGUAGES_TO_INDEX.get(lang)) for path in df_filenames.get('train')])
 
                 missing_probes = tuned_set_size.train_size - len(df_filenames.get('train'))
-                print(f"Missing probes: {missing_probes}")
-                cls.TRAIN_FILENAMES.extend([(path, cls.language_to_index.get(lang)) for path in df_filenames.get('train').sample(missing_probes, replace=True)])
+                # print(f"Missing probes: {missing_probes}")
+                cls.TRAIN_FILENAMES.extend([(path, cls.LANGUAGES_TO_INDEX.get(lang)) for path in df_filenames.get('train').sample(missing_probes, replace=True)])
 
-                print("Tuned train size:", tuned_set_size.train_size)
-                print("Tuned val size:", tuned_set_size.val_size)
-                print("Tuned test size:", tuned_set_size.test_size)
-                print("--------------------------")
-                print("Test size: ", len(df_filenames.get('test')))
-                print("Val size: ", len(df_filenames.get('val')))
-                print("Train size: ", len(df_filenames.get('train')))
-                print("--------------------------")
-                print("--------------------------")
+                # print("Tuned train size:", tuned_set_size.train_size)
+                # print("Tuned val size:", tuned_set_size.val_size)
+                # print("Tuned test size:", tuned_set_size.test_size)
+                # print("--------------------------")
+                # print("Test size: ", len(df_filenames.get('test')))
+                # print("Val size: ", len(df_filenames.get('val')))
+                # print("Train size: ", len(df_filenames.get('train')))
+                # print("--------------------------")
+                # print("--------------------------")
 
     @classmethod
     def _shuffle_filenames(cls) -> None:
@@ -273,20 +272,4 @@ class Preprocess():
 
 
 
-ORIGIN_SAMPLE_RATE = 48_000
-FINAL_SAMPLE_RATE = 16_000
-MAX_CLIENT_ID_AMOUNT = 3000
-MIN_CLIP_DURATION_MS = 2000
-SET_SIZE = 34_000
-BATCH_SIZE = 32
-
-Preprocess.initialize(
-    batch_size=BATCH_SIZE,
-    max_client_id_amount=MAX_CLIENT_ID_AMOUNT,
-    min_clip_duration_ms=MIN_CLIP_DURATION_MS,
-    set_size=SET_SIZE,
-    origin_sample_rate=ORIGIN_SAMPLE_RATE,
-    final_sample_rate=FINAL_SAMPLE_RATE,
-)
-
-Preprocess.preprocess_probes()
+#
