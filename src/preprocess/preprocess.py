@@ -21,13 +21,13 @@ class Preprocess:
     ONE_LANG_SET_SIZE: int
     SET_HPARAMS: SetHyperparameters
     BATCH_SIZE: int = 32
-    TRAIN_FILENAMES: list[str] = []
-    VAL_FILENAMES: list[str] = []
-    TEST_FILENAMES: list[str] = []
+    TRAIN_FILENAMES: list[tuple[str, int]] = []
+    VAL_FILENAMES: list[tuple[str, int]] = []
+    TEST_FILENAMES: list[tuple[str, int]] = []
     train_dataset = tf.data.Dataset.from_tensor_slices(([], []))
     val_dataset = tf.data.Dataset.from_tensor_slices(([], []))
     test_dataset = tf.data.Dataset.from_tensor_slices(([], []))
-    MIN_TRAIN_SET_FILL = 10
+    MIN_TRAIN_SET_FILL = 100
 
     @classmethod
     def set_origin_sample_rate(cls, rate: int) -> None:
@@ -135,10 +135,11 @@ class Preprocess:
         return processed_samples
 
     @staticmethod
-    def preprocess() -> None:
+    def _split_filenames() -> None:
 
         languages = PathsInfo.get_languages()
         language_to_index = {lang: idx for idx, lang in enumerate(languages)}
+        print(language_to_index)
 
         @tf.function
         def one_hot_encode_language(lang):
@@ -150,9 +151,6 @@ class Preprocess:
             audio.set_shape(audio_shape)
             label.set_shape(label_shape)
             return audio, label
-
-
-        need_fill = False
 
         for lang in PathsInfo.get_languages():
             men_size = Preprocess.ONE_LANG_GENDER_SET_SIZE
@@ -171,48 +169,27 @@ class Preprocess:
             df_women = audio_meta_info.get_df_women()
 
             if len(df_women) <= Preprocess.SET_HPARAMS.test_size // 2 + Preprocess.SET_HPARAMS.val_size // 2 + Preprocess.MIN_TRAIN_SET_FILL:
-                missing_women_probes = Preprocess.SET_HPARAMS.test_size // 2 + Preprocess.SET_HPARAMS.val_size // 2 + Preprocess.SET_HPARAMS.train_size // 2 + Preprocess.MIN_TRAIN_SET_FILL - len(df_women)
+                missing_women_probes = Preprocess.SET_HPARAMS.test_size // 2 + Preprocess.SET_HPARAMS.val_size // 2 + Preprocess.MIN_TRAIN_SET_FILL - len(df_women)
                 men_size = Preprocess.ONE_LANG_GENDER_SET_SIZE + missing_women_probes
                 women_size = Preprocess.ONE_LANG_GENDER_SET_SIZE - missing_women_probes
-                # print(missing_women_probes)
-                # print(Preprocess.ONE_LANG_GENDER_SET_SIZE + missing_women_probes)
-                # print(Preprocess.ONE_LANG_GENDER_SET_SIZE - missing_women_probes)
-                need_fill = True
-
-
-            # del audio_meta_info
+                print("MISSING PROBES")
 
             for num, gender_df in enumerate([df_men, df_women]):
                 tuned_set_size = SetHyperparameters(men_size) if num == 0 else SetHyperparameters(women_size)
-                if not need_fill:
-                    # tuned_set_size = SetHyperparameters(Preprocess.ONE_LANG_GENDER_SET_SIZE)
 
-                    df_filenames = SplitSet(
-                        df=gender_df,
-                        max_client_id_amount=Preprocess.MAX_CLIENT_ID_AMOUNT,
-                        min_clip_duration_ms=Preprocess.MIN_CLIP_DURATION_MS,
-                        set_size=(men_size if num == 0 else women_size),
-                        lang=lang
-                    ).get_filenames()
-                else:
-                    # tuned_set_size = SetHyperparameters(men_size) if num == 0 else SetHyperparameters(women_size)
-                    print("TUNING SET SIZE")
-                    df_filenames = SplitSet(
-                        df=gender_df,
-                        max_client_id_amount=Preprocess.MAX_CLIENT_ID_AMOUNT,
-                        min_clip_duration_ms=Preprocess.MIN_CLIP_DURATION_MS,
-                        set_size=(men_size if num == 0 else women_size),
-                        lang=lang
-                    ).get_filenames()
+                df_filenames = SplitSet(
+                    df=gender_df,
+                    max_client_id_amount=Preprocess.MAX_CLIENT_ID_AMOUNT,
+                    min_clip_duration_ms=Preprocess.MIN_CLIP_DURATION_MS,
+                    set_size=(men_size if num == 0 else women_size),
+                    lang=lang
+                ).get_filenames()
+
 
                 print(f"---SET SPLIT DONE {num} {lang}---")
                 # TODO: tutuaj brać dany gender sprawdzać czy ilość plików jest równna danemu zbiorowi treningowemu (val i test przekazywać dalej)
                 # TODO: nastepnie jeżeli dana płeć jest mniejsza od danego zbioru to wybrać tyle losowych próbek żeby dopełnić
                 # TODO: potem w datasecie zaugumentować. Dodawać do listy ścieżek do plików i wziąć zrobić dataset jako from tensor slices
-                # print(len(df_filenames.get('train')))
-                # print(len(df_filenames.get('val')))
-                # print()
-
 
 
                 if len(df_filenames.get('test')) < (tuned_set_size.test_size // 2):
@@ -226,28 +203,39 @@ class Preprocess:
                         tuned_set_size.val_size // 2 - len(df_filenames.get('val'))
                     )
 
-                Preprocess.TEST_FILENAMES.extend(df_filenames.get('test'))
-                Preprocess.VAL_FILENAMES.extend(df_filenames.get('val'))
-                Preprocess.TRAIN_FILENAMES.extend(df_filenames.get('train'))
-                print(f"train size: {tuned_set_size.train_size}")
-                print(f"len train: {len(df_filenames.get('train'))}")
-
-                SetHyperparameters(men_size)
+                Preprocess.TEST_FILENAMES.extend([(path, language_to_index.get(lang)) for path in df_filenames.get('test')])
+                Preprocess.VAL_FILENAMES.extend([(path, language_to_index.get(lang)) for path in df_filenames.get('val')])
+                Preprocess.TRAIN_FILENAMES.extend([(path, language_to_index.get(lang)) for path in df_filenames.get('train')])
 
                 missing_probes = tuned_set_size.train_size - len(df_filenames.get('train'))
                 print(f"Missing probes: {missing_probes}")
-                Preprocess.TRAIN_FILENAMES.extend(df_filenames.get('train').sample(missing_probes, replace=True))
+                Preprocess.TRAIN_FILENAMES.extend([(path, language_to_index.get(lang)) for path in df_filenames.get('train').sample(missing_probes, replace=True)])
 
-                print(len(Preprocess.TEST_FILENAMES))
-                print(len(Preprocess.VAL_FILENAMES))
-                print(len(Preprocess.TRAIN_FILENAMES))
 
+
+
+                print("Tuned train size:", tuned_set_size.train_size)
+                print("Tuned val size:", tuned_set_size.val_size)
+                print("Tuned test size:", tuned_set_size.test_size)
                 print("--------------------------")
-                print(len(df_filenames.get('test')))
-                print(len(df_filenames.get('val')))
-                print(len(df_filenames.get('train')))
+                print("Test size: ", len(df_filenames.get('test')))
+                print("Val size: ", len(df_filenames.get('val')))
+                print("Train size: ", len(df_filenames.get('train')))
                 print("--------------------------")
                 print("--------------------------")
+
+    @staticmethod
+    def _shuffle_filenames() -> None:
+        random.shuffle(Preprocess.TEST_FILENAMES)
+        random.shuffle(Preprocess.VAL_FILENAMES)
+        random.shuffle(Preprocess.TRAIN_FILENAMES)
+
+    @staticmethod
+    def preprocess_probes():
+        Preprocess._split_filenames()
+        Preprocess._shuffle_filenames()
+
+
                 # train_filenames = df_filenames.get('train').apply(lambda filename: Preprocess.load_and_align_probes(filename)).to_list()
                 # val_filenames = df_filenames.get('val').apply(lambda filename: Preprocess.load_and_align_probes(filename)).to_list()
                 # test_filenames = df_filenames.get('test').apply(lambda filename: Preprocess.load_and_align_probes(filename)).to_list()
@@ -362,7 +350,7 @@ ORIGIN_SAMPLE_RATE = 48_000
 FINAL_SAMPLE_RATE = 16_000
 MAX_CLIENT_ID_AMOUNT = 3000
 MIN_CLIP_DURATION_MS = 2000
-SET_SIZE = 30_000
+SET_SIZE = 34_000
 BATCH_SIZE = 32
 #%%
 Preprocess.set_origin_sample_rate(ORIGIN_SAMPLE_RATE)
@@ -375,8 +363,12 @@ Preprocess.set_batch_size(BATCH_SIZE)
 
 
 
-Preprocess.preprocess()
+Preprocess._split_filenames()
 
-print(len(Preprocess.TRAIN_FILENAMES))
-print(len(Preprocess.VAL_FILENAMES))
-print(len(Preprocess.TEST_FILENAMES))
+# print(len(Preprocess.TRAIN_FILENAMES))
+# print(len(Preprocess.VAL_FILENAMES))
+# print(len(Preprocess.TEST_FILENAMES))
+#
+# print(Preprocess.TRAIN_FILENAMES)
+# print(Preprocess.TEST_FILENAMES)
+print(Preprocess.VAL_FILENAMES)

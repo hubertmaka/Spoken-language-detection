@@ -42,14 +42,15 @@ class SplitSet(HparamsMerger):
                     df_train = pd.concat([df_train, rows_form_origin_df[:(self.set_hyperparameters.train_size - len(df_train))]], ignore_index=True)
                     continue
 
+        if len(df_train) == 0:
+            print("WARRING: NOT ENOUGH TRAIN SIZE")
+            df_train = df_test.sample(frac=0.3)
+
         self._df_train = df_train
         self._df_val = df_val
         self._df_test = df_test
 
     def get_filenames(self) -> dict[str, pd.DataFrame]:
-        # print(self._df_train)
-        # print(self._df_val)
-        # print(self._df_test)
         return {
             'train': self._df_train['path'].apply(lambda fn: os.path.join(self.paths_info.LANG_DIRS.get(self.lang), 'clips', fn)),
             'val': self._df_val['path'].apply(lambda fn: os.path.join(self.paths_info.LANG_DIRS.get(self.lang),'clips', fn)),
