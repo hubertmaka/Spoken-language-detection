@@ -103,49 +103,49 @@ class Pipeline:
         train_filenames = [x[0] for x in dataset]
         train_labels = [x[1] for x in dataset]
         dataset = tf.data.Dataset.from_tensor_slices((train_filenames, train_labels))
-        print(dataset.as_numpy_iterator().next())
+        # print(dataset.as_numpy_iterator().next())
         dataset = dataset.map(lambda filename, label: (filename, Pipeline.one_hot_encode(label)))
-        print(dataset.as_numpy_iterator().next())
+        # print(dataset.as_numpy_iterator().next())
         dataset = dataset.map(lambda filename, label: (Pipeline.load_and_align_probes(filename), label))
-        print(dataset.as_numpy_iterator().next())
+        # print(dataset.as_numpy_iterator().next())
         if is_train:
             dataset = dataset.map(lambda audio, label: (Pipeline.augment_audio(audio), label))
-            print(dataset.as_numpy_iterator().next())
+            # print(dataset.as_numpy_iterator().next())
         dataset = dataset.map(lambda audio, label: (ProcessAudio(audio, Preprocess.SAMPLE_RATE).normalize_audio(), label))
-        print(dataset.as_numpy_iterator().next())
+        # print(dataset.as_numpy_iterator().next())
         dataset = dataset.map(lambda audio, label: (ProcessAudio(audio, Preprocess.SAMPLE_RATE).create_spectrogram(), label))
-        print(dataset.as_numpy_iterator().next())
+        # print(dataset.as_numpy_iterator().next())
         # JEŻELI NIE BĘDZIE WIDZIAŁ TENSORFLOW KSZTAŁTÓW TO TO JEST PO TO ZEBY JE USTAWIĆ
-        # sample, label = dataset.as_numpy_iterator().next()
-        # dataset = dataset.map(lambda audio, label: Pipeline.set_shapes(audio, label, sample.shape, label.shape))
+        sample, label = dataset.as_numpy_iterator().next()
+        dataset = dataset.map(lambda audio, label: Pipeline.set_shapes(audio, label, sample.shape, label.shape))
         dataset = dataset.cache()
-        print(dataset.as_numpy_iterator().next())
-        dataset = dataset.shuffle(buffer_size=10_000)
-        print(dataset.as_numpy_iterator().next())
+        # print(dataset.as_numpy_iterator().next())
+        # dataset = dataset.shuffle(buffer_size=5_000)
+        # print(dataset.as_numpy_iterator().next())
         dataset = dataset.batch(batch_size=Preprocess.BATCH_SIZE, drop_remainder=True)
-        print(dataset.as_numpy_iterator().next())
+        # print(dataset.as_numpy_iterator().next())
         dataset = dataset.prefetch(tf.data.AUTOTUNE)
-        print(dataset.as_numpy_iterator().next())
+        # print(dataset.as_numpy_iterator().next())
         return dataset
 
 
 
 
-ORIGIN_SAMPLE_RATE = 48_000
-FINAL_SAMPLE_RATE = 16_000
-MAX_CLIENT_ID_AMOUNT = 3000
-MIN_CLIP_DURATION_MS = 2000
-SET_SIZE = 1_000
-BATCH_SIZE = 32
-
-Preprocess.initialize(
-    batch_size=BATCH_SIZE,
-    max_client_id_amount=MAX_CLIENT_ID_AMOUNT,
-    min_clip_duration_ms=MIN_CLIP_DURATION_MS,
-    set_size=SET_SIZE,
-    origin_sample_rate=ORIGIN_SAMPLE_RATE,
-    final_sample_rate=FINAL_SAMPLE_RATE,
-)
-Preprocess.preprocess_probes()
-
-Pipeline.create_pipeline(Preprocess.TRAIN_FILENAMES, is_train=True)
+# ORIGIN_SAMPLE_RATE = 48_000
+# FINAL_SAMPLE_RATE = 16_000
+# MAX_CLIENT_ID_AMOUNT = 3000
+# MIN_CLIP_DURATION_MS = 2000
+# SET_SIZE = 1_000
+# BATCH_SIZE = 32
+#
+# Preprocess.initialize(
+#     batch_size=BATCH_SIZE,
+#     max_client_id_amount=MAX_CLIENT_ID_AMOUNT,
+#     min_clip_duration_ms=MIN_CLIP_DURATION_MS,
+#     set_size=SET_SIZE,
+#     origin_sample_rate=ORIGIN_SAMPLE_RATE,
+#     final_sample_rate=FINAL_SAMPLE_RATE,
+# )
+# Preprocess.preprocess_probes()
+#
+# Pipeline.create_pipeline(Preprocess.TRAIN_FILENAMES, is_train=True)
