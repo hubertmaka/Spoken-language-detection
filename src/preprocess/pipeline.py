@@ -59,10 +59,8 @@ class Pipeline:
         expected_probes = tf.cast((Preprocess.MIN_CLIP_DURATION_MS / 1000) * Preprocess.SAMPLE_RATE, dtype=tf.int32)
         current_probes = tf.cast(tf.shape(audio)[0], dtype=tf.int32)
         if expected_probes > current_probes:
-            print("ADD ZEROS")
             audio = Pipeline.add_zeros(audio, sample_rate)
         elif expected_probes < current_probes:
-            print("CUT AUDIO")
             audio = Pipeline.cut_audio(audio, sample_rate)
         return audio
 
@@ -81,16 +79,15 @@ class Pipeline:
         if 25 <= random.randint(1, 70) <= 45:
             audio, sample_rate = random.choice([
                 ProcessAudio(audio, sample_rate).time_masking_rand(
-                    min_mask=500, max_mask=2300
+                    min_mask=200, max_mask=800
                 ),
                 ProcessAudio(audio, sample_rate).change_pitch_rand(
                     sample_rate=sample_rate, min_shift=-2, max_shift=2
                 ),
                 ProcessAudio(audio, sample_rate).time_shift_rand(
-                    min_shift=-300, max_shift=300
+                    min_shift=-200, max_shift=200
                 ),
             ])
-        print("AUGUMENT")
         return audio
 
     @staticmethod
@@ -99,53 +96,31 @@ class Pipeline:
         return one_hot
 
     @staticmethod
-    def create_pipeline(dataset: list[tuple[str, int]], is_train: bool = False) -> tf.data.Dataset:
-        train_filenames = [x[0] for x in dataset]
-        train_labels = [x[1] for x in dataset]
+    def create_pipeline(audio_filepaths: list[tuple[str, int]], is_train: bool = False) -> tf.data.Dataset:
+        train_filenames = [x[0] for x in audio_filepaths]
+        train_labels = [x[1] for x in audio_filepaths]
         dataset = tf.data.Dataset.from_tensor_slices((train_filenames, train_labels))
-        # print(dataset.as_numpy_iterator().next())
-        dataset = dataset.map(lambda filename, label: (filename, Pipeline.one_hot_encode(label)))
-        # print(dataset.as_numpy_iterator().next())
-        dataset = dataset.map(lambda filename, label: (Pipeline.load_and_align_probes(filename), label))
-        # print(dataset.as_numpy_iterator().next())
-        if is_train:
-            dataset = dataset.map(lambda audio, label: (Pipeline.augment_audio(audio), label))
-            # print(dataset.as_numpy_iterator().next())
-        dataset = dataset.map(lambda audio, label: (ProcessAudio(audio, Preprocess.SAMPLE_RATE).normalize_audio(), label))
-        # print(dataset.as_numpy_iterator().next())
-        dataset = dataset.map(lambda audio, label: (ProcessAudio(audio, Preprocess.SAMPLE_RATE).create_spectrogram(), label))
-        # print(dataset.as_numpy_iterator().next())
-        # JEŻELI NIE BĘDZIE WIDZIAŁ TENSORFLOW KSZTAŁTÓW TO TO JEST PO TO ZEBY JE USTAWIĆ
-        sample, label = dataset.as_numpy_iterator().next()
-        dataset = dataset.map(lambda audio, label: Pipeline.set_shapes(audio, label, sample.shape, label.shape))
-        dataset = dataset.cache()
-        # print(dataset.as_numpy_iterator().next())
-        # dataset = dataset.shuffle(buffer_size=5_000)
-        # print(dataset.as_numpy_iterator().next())
+
+        def process_example(filename, label):
+            label = Pipeline.one_hot_encode(label)
+            audio = Pipeline.load_and_align_probes(filename)
+            if is_train:
+                audio = Pipeline.augment_audio(audio)
+            audio = ProcessAudio(audio, Preprocess.SAMPLE_RATE).normalize_audio()
+            audio = ProcessAudio(audio, Preprocess.SAMPLE_RATE).create_spectrogram(frame_length=512, by=4)
+            return audio, label
+
+        dataset = dataset.map(lambda filename, label: process_example(filename, label), num_parallel_calls=tf.data.AUTOTUNE)
+
+        sample, label = next(iter(dataset))
+        dataset = dataset.map(lambda audio, label: Pipeline.set_shapes(audio, label, sample.shape, label.shape),
+                              num_parallel_calls=tf.data.AUTOTUNE)
+
         dataset = dataset.batch(batch_size=Preprocess.BATCH_SIZE, drop_remainder=True)
-        # print(dataset.as_numpy_iterator().next())
+        dataset = dataset.cache()
+        # if is_train:
+        #     dataset = dataset.shuffle(buffer_size=5000)
         dataset = dataset.prefetch(tf.data.AUTOTUNE)
-        # print(dataset.as_numpy_iterator().next())
+
         return dataset
 
-
-
-
-# ORIGIN_SAMPLE_RATE = 48_000
-# FINAL_SAMPLE_RATE = 16_000
-# MAX_CLIENT_ID_AMOUNT = 3000
-# MIN_CLIP_DURATION_MS = 2000
-# SET_SIZE = 1_000
-# BATCH_SIZE = 32
-#
-# Preprocess.initialize(
-#     batch_size=BATCH_SIZE,
-#     max_client_id_amount=MAX_CLIENT_ID_AMOUNT,
-#     min_clip_duration_ms=MIN_CLIP_DURATION_MS,
-#     set_size=SET_SIZE,
-#     origin_sample_rate=ORIGIN_SAMPLE_RATE,
-#     final_sample_rate=FINAL_SAMPLE_RATE,
-# )
-# Preprocess.preprocess_probes()
-#
-# Pipeline.create_pipeline(Preprocess.TRAIN_FILENAMES, is_train=True)

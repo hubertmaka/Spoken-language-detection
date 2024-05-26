@@ -4,10 +4,10 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-tensorflow = "*"
 pandas = "*"
 librosa = "*"
 tensorflow-io = "*"
+tensorflow = {extras = ["and-cuda"], version = "*"}
 
 [dev-packages]
 matplotlib = "*"

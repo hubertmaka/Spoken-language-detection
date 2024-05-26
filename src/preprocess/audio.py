@@ -81,8 +81,8 @@ class ProcessAudio:
             shifted_audio = self._audio_tensor
         return shifted_audio, self._sample_rate
 
-    def create_spectrogram(self, *, time_frames: int = 320, freq_points: int = 32) -> tf.Tensor:
-        spectrogram = tf.signal.stft(self._audio_tensor, frame_length=time_frames, frame_step=freq_points)
+    def create_spectrogram(self, *, frame_length: int = 320, by: float) -> tf.Tensor:
+        spectrogram = tf.signal.stft(self._audio_tensor, frame_length=frame_length, frame_step=frame_length // by)
         spectrogram = tf.abs(spectrogram)
         spectrogram = tf.expand_dims(spectrogram, axis=2)
         return spectrogram

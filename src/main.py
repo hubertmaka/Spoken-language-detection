@@ -1,11 +1,7 @@
-from src.utils import ConvertMp3ToWav
-
+import tensorflow_io as tfio
 
 def main() -> None:
-    ConvertMp3ToWav(
-        'languages_audio',
-        'languages_audio_mp3',
-        'languages_audio_wav').call_ffmpeg()
+    print(tfio.version)
 
 
 if __name__ == "__main__":
