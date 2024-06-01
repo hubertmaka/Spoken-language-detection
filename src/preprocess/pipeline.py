@@ -43,8 +43,7 @@ class Pipeline:
 
     @staticmethod
     def load_resample_audio(filename: str) -> tf.Tensor:
-        file_content = tf.io.read_file(filename)
-        audio = tfio.audio.decode_mp3(file_content)
+        audio = tfio.audio.AudioIOTensor(filename=filename, dtype=tf.float32).to_tensor()
         audio = tf.squeeze(audio, axis=-1)
         audio = Pipeline.resample_audio(audio, Preprocess.ORIGIN_SAMPLE_RATE, Preprocess.SAMPLE_RATE)
         return audio
@@ -76,7 +75,7 @@ class Pipeline:
         audio = ProcessAudio(audio, sample_rate).add_noise_rand(min_level=0.01, max_level=0.06)
         audio = ProcessAudio(audio, sample_rate).change_amplitude_rand(min_increase=0.7, max_increase=1.3)
 
-        if 25 <= random.randint(1, 70) <= 45:
+        if random.randint(1, 100) % 7 == 0:
             audio, sample_rate = random.choice([
                 ProcessAudio(audio, sample_rate).time_masking_rand(
                     min_mask=200, max_mask=800
@@ -87,6 +86,9 @@ class Pipeline:
                 ProcessAudio(audio, sample_rate).time_shift_rand(
                     min_shift=-200, max_shift=200
                 ),
+                ProcessAudio(audio, sample_rate).fade_rand(
+                    fade_in_min=900, fade_in_max=1100, fade_out_min=1900, fade_out_max=2100
+                )
             ])
         return audio
 
@@ -96,7 +98,11 @@ class Pipeline:
         return one_hot
 
     @staticmethod
-    def create_pipeline(audio_filepaths: list[tuple[str, int]], is_train: bool = False) -> tf.data.Dataset:
+    def create_pipeline(
+            audio_filepaths: list[tuple[str, int]],
+            augment: bool = False,
+            shuffle: bool = False
+    ) -> tf.data.Dataset:
         train_filenames = [x[0] for x in audio_filepaths]
         train_labels = [x[1] for x in audio_filepaths]
         dataset = tf.data.Dataset.from_tensor_slices((train_filenames, train_labels))
@@ -104,23 +110,25 @@ class Pipeline:
         def process_example(filename, label):
             label = Pipeline.one_hot_encode(label)
             audio = Pipeline.load_and_align_probes(filename)
-            if is_train:
+            if augment:
                 audio = Pipeline.augment_audio(audio)
-            audio = ProcessAudio(audio, Preprocess.SAMPLE_RATE).normalize_audio()
-            audio = ProcessAudio(audio, Preprocess.SAMPLE_RATE).create_spectrogram(frame_length=512, by=4)
+            audio = ProcessAudio(audio, Preprocess.SAMPLE_RATE).create_spectrogram_mel_log()
             return audio, label
 
-        dataset = dataset.map(lambda filename, label: process_example(filename, label), num_parallel_calls=tf.data.AUTOTUNE)
+        dataset = dataset.map(
+            lambda filename, label: process_example(filename, label),
+            num_parallel_calls=tf.data.AUTOTUNE
+        )
 
-        sample, label = next(iter(dataset))
-        dataset = dataset.map(lambda audio, label: Pipeline.set_shapes(audio, label, sample.shape, label.shape),
-                              num_parallel_calls=tf.data.AUTOTUNE)
+        sample, sample_label = next(iter(dataset))
+        dataset = dataset.map(
+            lambda audio, label: Pipeline.set_shapes(audio, label, sample.shape, sample_label.shape),
+            num_parallel_calls=tf.data.AUTOTUNE
+        )
 
         dataset = dataset.batch(batch_size=Preprocess.BATCH_SIZE, drop_remainder=True)
-        dataset = dataset.cache()
-        # if is_train:
-        #     dataset = dataset.shuffle(buffer_size=5000)
-        dataset = dataset.prefetch(tf.data.AUTOTUNE)
+        dataset = dataset.cache().prefetch(tf.data.AUTOTUNE)
+        if shuffle:
+            dataset = dataset.shuffle(buffer_size=5000)
 
         return dataset
-

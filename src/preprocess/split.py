@@ -63,5 +63,3 @@ class SplitSet(HparamsMerger):
             'val': self._df_val,
             'test': self._df_test
         }
-
-

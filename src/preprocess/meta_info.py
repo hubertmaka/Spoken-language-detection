@@ -50,4 +50,3 @@ class AudioMetaInfo(HparamsMerger):
 
     def get_df_women(self) -> pd.DataFrame:
         return self.df_women
-

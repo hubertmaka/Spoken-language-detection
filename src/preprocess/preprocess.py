@@ -20,7 +20,7 @@ class Preprocess:
     ONE_LANG_SET_SIZE: int
     ONE_LANG_GENDER_SET_SIZE: int
     SET_HPARAMS: SetHyperparameters
-    BATCH_SIZE: int = 32
+    BATCH_SIZE: int = 64
     TRAIN_FILENAMES: list[tuple[str, int]] = []
     VAL_FILENAMES: list[tuple[str, int]] = []
     TEST_FILENAMES: list[tuple[str, int]] = []
@@ -120,6 +120,7 @@ class Preprocess:
                 cls.TRAIN_FILENAMES.extend([(path, cls.LANGUAGES_TO_INDEX.get(lang)) for path in df_filenames.get('train')])
 
                 missing_probes = tuned_set_size.train_size - len(df_filenames.get('train'))
+                print(f"{lang} {num} missing probes: {missing_probes}")
 
                 cls.TRAIN_FILENAMES.extend([(path, cls.LANGUAGES_TO_INDEX.get(lang)) for path in df_filenames.get('train').sample(missing_probes, replace=True)])
 
@@ -166,16 +167,10 @@ class Preprocess:
         return result
 
     @classmethod
-    def preprocess_probes(cls) -> None:
+    def preprocess_probes(cls, save: bool = False) -> None:
         cls._split_filenames()
         cls._shuffle_filenames()
-        cls.save_set("train", cls.TRAIN_FILENAMES)
-        cls.save_set("val", cls.VAL_FILENAMES)
-        cls.save_set("test", cls.TEST_FILENAMES)
-
-
-
-
-
-
-
+        if save:
+            cls.save_set("train", cls.TRAIN_FILENAMES)
+            cls.save_set("val", cls.VAL_FILENAMES)
+            cls.save_set("test", cls.TEST_FILENAMES)

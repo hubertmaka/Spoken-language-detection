@@ -1,7 +1,6 @@
 import tensorflow as tf
 import random
 import librosa
-import numpy as np
 import tensorflow_io as tfio
 
 
@@ -81,11 +80,14 @@ class ProcessAudio:
             shifted_audio = self._audio_tensor
         return shifted_audio, self._sample_rate
 
-    def create_spectrogram(self, *, frame_length: int = 320, by: float) -> tf.Tensor:
-        spectrogram = tf.signal.stft(self._audio_tensor, frame_length=frame_length, frame_step=frame_length // by)
-        spectrogram = tf.abs(spectrogram)
-        spectrogram = tf.expand_dims(spectrogram, axis=2)
-        return spectrogram
+    def fade_rand(self, fade_in_min: int = 900, fade_in_max: int = 1100, fade_out_min: int = 1900, fade_out_max: int = 2100) -> tf.Tensor:
+        fade_in = random.randint(fade_in_min, fade_in_max)
+        fade_out = random.randint(fade_out_min, fade_out_max)
+        return tfio.audio.fade(self._audio_tensor, fade_in, fade_out, mode='logarithmic')
 
-
-
+    def create_spectrogram_mel_log(self, *, nfft: int = 2048, window: int = 512, stride: int = 256, mels: int = 256) -> tf.Tensor:
+        spectrogram = tfio.audio.spectrogram(self._audio_tensor, nfft=nfft, window=window, stride=stride)
+        mel_spectrogram = tfio.audio.melscale(spectrogram, rate=self._sample_rate, mels=mels, fmin=0, fmax=self._sample_rate // 2)
+        db_scale_mel_spectrogram = tfio.audio.dbscale(mel_spectrogram, top_db=50)
+        db_scale_mel_spectrogram = tf.expand_dims(db_scale_mel_spectrogram, axis=2)
+        return db_scale_mel_spectrogram
