@@ -28,7 +28,8 @@ Best val accuracy: 0.33
 Train accuracy: 0.33
 
 model6.keras
-Set size: 30000
+One less max pooling and 512 Dense
+Set size: 27000
 Return to dropout (0.2)
-Best val accuracy:
-Train accuracy:
+Best val accuracy: 0.61
+Train accuracy: 0.60

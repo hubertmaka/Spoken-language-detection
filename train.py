@@ -1,3 +1,4 @@
+
 from src.preprocess.preprocess import Preprocess
 import tensorflow as tf
 from tensorflow import keras
@@ -11,7 +12,7 @@ ORIGIN_SAMPLE_RATE = 48_000
 FINAL_SAMPLE_RATE = 16_000
 MAX_CLIENT_ID_AMOUNT = 2500
 MIN_CLIP_DURATION_MS = 6000
-SET_SIZE = 24_000
+SET_SIZE = 27_000
 BATCH_SIZE = 64
 
 Preprocess.initialize(
@@ -48,8 +49,9 @@ if if_save:
     train = Preprocess.load_set('train')
     val = Preprocess.load_set('val')
 else:
-    train = Preprocess.TRAIN_FILENAMES
-    val = Preprocess.VAL_FILENAMES
+    pass
+train = Preprocess.TRAIN_FILENAMES
+val = Preprocess.VAL_FILENAMES
 
 random.shuffle(train)
 random.shuffle(val)
@@ -82,9 +84,8 @@ model = keras.Sequential([
     layers.BatchNormalization(),
     layers.MaxPooling2D((2, 2)),
     layers.Flatten(),
-    layers.Dense(256, activation='relu'),
-    layers.BatchNormalization(),
-    layers.Dropout(0.4),
+    layers.Dense(512, activation='relu'),
+    layers.Dropout(0.2),
     layers.Dense(3, activation='softmax')
 ])
 model.summary()
@@ -92,7 +93,7 @@ model.summary()
 model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
 
 checkpoint_callback = keras.callbacks.ModelCheckpoint(
-    'model1.keras',
+    'model6.keras',
     save_best_only=True,
     monitor='val_accuracy',
     mode='max'
@@ -104,7 +105,7 @@ early_stopping = keras.callbacks.EarlyStopping(
     patience=15
 )
 
-history = model.fit(train_dataset, epochs=30, validation_data=val_dataset, batch_size=BATCH_SIZE, callbacks=[early_stopping, checkpoint_callback])
+history = model.fit(train_dataset, epochs=50, validation_data=val_dataset, batch_size=BATCH_SIZE, callbacks=[early_stopping, checkpoint_callback])
 
 plt.plot(history.history['accuracy'], label='accuracy')
 plt.plot(history.history['val_accuracy'], label='val_accuracy')
