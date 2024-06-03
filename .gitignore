@@ -11,7 +11,7 @@ chromedriver.exe
 
 # Large data
 languages_audio/
-
+data/
 # Distribution / packaging
 .Python
 build/
