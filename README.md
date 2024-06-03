@@ -28,8 +28,11 @@ The main objectives of the project were:
 ### 3.3. Data Processing
 
 - **Cleaning and validated data**: The data was checked and well-described, so in order to segment the data into sets and use them to teach the model, all we had to do was use the validated.tsv files (where the information on the sound files was located) and clip_duration.tsv (where the duration of the files in milliseconds was located).
-- **Segmentation**: From the set of validated files, those whose duration was greater than or equal to the required sample duration were selected. The recordings were then divided into training, validation, and test sets in 60:20:20 ratios, so that a given speaker would not be repeated in different sets, the gender ratio would be 50:50 in each set, and the number of occurrences of a single speaker in a given set would be controlled.
+- **Segmentation**: From the set of validated files, those whose duration was greater than or equal to the required sample duration were selected. The recordings were then divided into training, validation, and test sets in `60:20:20` ratios, so that a given speaker would not be repeated in different sets, the gender ratio would be `50:50` in each set, and the number of occurrences of a single speaker in a given set would be controlled.
 - **Create a data processing pipeline and feature extraction**: In the processing pipeline using `tf.data.Dataset` along with lazy loading, the data were resampled, properly labeled, aligned to a given length, augmented, and a spectrogram was created from them with frequencies on a mel scale and amplitude on a logarithmic scale. In the end, the model was taught on parameters `nfft=2048`, `window=512`, `stdr=256`, and `mels=256` mainly due to hardware limitations, however, with adequate resources one can try to create a more accurate spectrogram. The batch size is 64. In addition, functions such as `cache()` and `prefetch()` were used for optimization purposes. For a sample length of 6 seconds, the input spectrogram size is `(64, 375, 256, 1)`.
+- **Data augmentation**: A special `ProcessAudio` class has been created, in which functions have been implemented that allow data augmentation. Each training sample was subjected to random Gaussian noise and amplitude variation within a specified range (custom range adjustment is possible). In addition, random samples approximately with probability `0.14` are subjected to one of four augmentations: fading, time masking, pitch shifting and time shifting.
+
+Translated with DeepL.com (free version)
 
 ### 3.4. Building the Model
 
@@ -63,7 +66,7 @@ layers.Dense(3, activation='softmax')
 ])
 ```
 
-- **Set Size**: The model was trained on a set of 27,000 samples with 9,000 for each language in a 60:20:20 ratio.
+- **Set Size**: The model was trained on a set of `27,000` samples with `9,000` for each language in a `60:20:20` ratio.
 
 ### 3.5. Evaluation and Optimization
 
@@ -73,8 +76,17 @@ layers.Dense(3, activation='softmax')
 
 ## 4. Results
 
-- **Accuracy of the Model**: The model achieved 67% accuracy on the test and validation sets.
+- **Accuracy of the Model**: The model achieved `68%` accuracy on the test and validation sets.
 - **Error Analysis**: The model performed significantly well on languages from different families, e.g. It recognized languages between the Celtic, Germanic or Slavic families better than in the Slavic family.
+### **Confusion Matrix**:
+![confusion_matrix](https://github.com/hubertmaka/Spoken-language-detection/assets/121463460/bd00a007-7bdb-494d-a92c-44ab0a6f504c)
+
+### **Training Plots (Training Ended With Early Stopping):**
+![training_plots](https://github.com/hubertmaka/Spoken-language-detection/assets/121463460/7fed7a21-0702-4b0b-9bb7-2e2c68505b79)
+
+### **Comparison different set sizes and validate/train accuracy:**
+![acc_plots](https://github.com/hubertmaka/Spoken-language-detection/assets/121463460/eabd78b3-2e2b-4e78-b4d5-8afa3dba582b)
+
 
 ## 5. Conclusions
 
@@ -85,7 +97,7 @@ layers.Dense(3, activation='softmax')
 
 ## 6. Running the Environment
 
-In order to run my test environment, you must have Docker with the appropriate modules that allow you to use the GPU during learning (if you want to do so). Here is the linkt to the documentation: https://www.tensorflow.org/install/docker?hl=pl. Then follow the following steps:
+In order to run my test environment, you must have Docker with the appropriate modules that allow you to use the GPU during learning (if you want to do so). Here is the linkt to the documentation: https://www.tensorflow.org/install/docker. Then follow the following steps:
 
 - Clone the repository:
   ```bash
