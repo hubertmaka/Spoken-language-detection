@@ -80,15 +80,30 @@ layers.Dense(3, activation='softmax')
 
 ## 6. Running the Environment
 
-In order to run my test environment, you must have Docker with the appropriate modules that allow you to use the GPU during learning (if you want to do so). Then follow the following steps:
+In order to run my test environment, you must have Docker with the appropriate modules that allow you to use the GPU during learning (if you want to do so). Here is the linkt to the documentation: https://www.tensorflow.org/install/docker?hl=pl. Then follow the following steps:
 
-- Clone the repository: `git clone https://github.com/hubertmaka/Spoken-language-detection.git`
-- Create a folder named “languages” next to the cloned repository: `mkdir languages`
+- Clone the repository:
+  ```bash
+  git clone https://github.com/hubertmaka/Spoken-language-detection.git
+  ```
+- Create a folder named “languages” next to the cloned repository:
+  ```bash
+  mkdir languages
+  ``` 
 - Put the folders from Mozilla Common Voice into the “languages” folder. The final folder structure should look like this:
   ![image](https://github.com/hubertmaka/Spoken-language-detection/assets/121463460/9493b2a8-00fb-4ebc-8db3-ee9db3d437e3)
-- Enter the cloned repository: `cd ./Spoken-language-detection`
-- Create a Docker image: `git build -t spoken-lang-detection-image [path to Dockerfile (e.g. .)].`
-- Run the container: `docker run -gpus all -it -p 8888:8888 -v [DIR directory path]:/app -rm spoken-lang-detection-image bash`
+- Enter the cloned repository:
+  ```bash
+  cd ./Spoken-language-detection
+  ```
+- Create a Docker image:
+  ```bash
+  git build -t spoken-lang-detection-image [path to Dockerfile (e.g. .)]
+  ```
+- Run the container:
+  ```
+  docker run -gpus all -it -p 8888:8888 -v [DIR directory path]:/app -rm spoken-lang-detection-image bash
+  ```
 
 ## 7. Links
 
