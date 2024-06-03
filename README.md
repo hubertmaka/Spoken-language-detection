@@ -79,13 +79,14 @@ layers.Dense(3, activation='softmax')
 - **Accuracy of the Model**: The model achieved `68%` accuracy on the test and validation sets.
 - **Error Analysis**: The model performed significantly well on languages from different families, e.g. It recognized languages between the Celtic, Germanic or Slavic families better than in the Slavic family.
 ### **Confusion Matrix**:
-![confusion_matrix](https://github.com/hubertmaka/Spoken-language-detection/assets/121463460/bd00a007-7bdb-494d-a92c-44ab0a6f504c)
+  ![confusion_matrix](https://github.com/hubertmaka/Spoken-language-detection/assets/121463460/bd00a007-7bdb-494d-a92c-44ab0a6f504c)
 
 ### **Training Plots (Training Ended With Early Stopping):**
-![training_plots](https://github.com/hubertmaka/Spoken-language-detection/assets/121463460/7fed7a21-0702-4b0b-9bb7-2e2c68505b79)
+  ![training_plots](https://github.com/hubertmaka/Spoken-language-detection/assets/121463460/7fed7a21-0702-4b0b-9bb7-2e2c68505b79)
 
 ### **Comparison different set sizes and validate/train accuracy:**
-![acc_plots](https://github.com/hubertmaka/Spoken-language-detection/assets/121463460/eabd78b3-2e2b-4e78-b4d5-8afa3dba582b)
+  ![acc_plots](https://github.com/hubertmaka/Spoken-language-detection/assets/121463460/d25ff2e2-0ba7-4088-8b43-8adb271b6fe7)
+
 
 
 ## 5. Conclusions
