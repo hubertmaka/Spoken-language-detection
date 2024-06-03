@@ -32,8 +32,6 @@ The main objectives of the project were:
 - **Create a data processing pipeline and feature extraction**: In the processing pipeline using `tf.data.Dataset` along with lazy loading, the data were resampled, properly labeled, aligned to a given length, augmented, and a spectrogram was created from them with frequencies on a mel scale and amplitude on a logarithmic scale. In the end, the model was taught on parameters `nfft=2048`, `window=512`, `stdr=256`, and `mels=256` mainly due to hardware limitations, however, with adequate resources one can try to create a more accurate spectrogram. The batch size is `64`. In addition, functions such as `cache()` and `prefetch()` were used for optimization purposes. For a sample length of `6 seconds`, the input spectrogram size is `(64, 375, 256, 1)`.
 - **Data augmentation**: A special `ProcessAudio` class has been created, in which functions have been implemented that allow data augmentation. Each training sample was subjected to random Gaussian noise and amplitude variation within a specified range (custom range adjustment is possible). In addition, random samples approximately with probability `0.14` are subjected to one of four augmentations: fading, time masking, pitch shifting and time shifting.
 
-Translated with DeepL.com (free version)
-
 ### 3.4. Building the Model
 
 - **Choice of Algorithm**: Used to Convolutional Neural Networks (CNN) architecture, since the language recognition problem was treated as a problem of image classification, which are different spectrograms.
