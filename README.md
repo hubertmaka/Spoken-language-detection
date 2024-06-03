@@ -94,7 +94,7 @@ layers.Dense(3, activation='softmax')
 
 ## 5. Conclusions
 
-- After testing various configurations and training the model, it can be concluded that the amount of data given to train the model was too small for technical reasons. Increasing it should improve the generalization of the model.
+- After testing various configurations and training the model, it can be concluded that the amount of data given to train the model was too small for technical reasons. Increasing it should improve the generalization of the model. You can see it on the 3rd plot.
 - Future work can focus on increasing the number of recognized languages and improving accuracy by using more advanced signal processing techniques and deeper neural networks.
 - Increasing the accuracy of the spectrogram is also a proposed direction of development.
 - A key factor that projected the model testing results obtained was hardware limitations.
